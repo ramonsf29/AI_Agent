@@ -1,16 +1,61 @@
-# This is a sample Python script.
+import json
+from pathlib import Path
 
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
+from model.local_model import LocalModel
+from prompts.swift_analysis import build_swift_analysis_messages
+from model.analysis_schema import validate_analysis
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+MODEL = "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit"
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
+def main():
+    source_code = Path("example.swift").read_text()
+
+    llm = LocalModel(MODEL)
+
+    messages = build_swift_analysis_messages(source_code)
+
+    response = llm.generate(
+        messages=messages,
+        max_tokens=600,
+    )
+
+    clean_response = response.strip()
+
+    if clean_response.startswith("```json"):
+        clean_response = clean_response.removeprefix("```json")
+
+    if clean_response.endswith("```"):
+        clean_response = clean_response.removesuffix("```")
+
+    clean_response = clean_response.strip()
+
+    try:
+        analysis = json.loads(clean_response)
+        if not validate_analysis(analysis):
+            print("\nERROR: JSON structure is invalid.")
+            return
+
+    except json.JSONDecodeError as error:
+        print("\nERROR: The model returned invalid JSON.")
+        print(error)
+        return
+
+    print("\n--- SUMMARY ---\n")
+    print(analysis["summary"])
+
+    print("\n--- EDGE CASES ---\n")
+    for edge_case in analysis["edge_cases"]:
+        print(f"- {edge_case}")
+
+    print("\n--- POTENTIAL ISSUES ---\n")
+    for issue in analysis["potential_issues"]:
+        print(
+            f"- {issue['description']} "
+            f"(confidence: {issue['confidence']})"
+        )
+
+
+if __name__ == "__main__":
+    main()
