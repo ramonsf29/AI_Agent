@@ -1,60 +1,29 @@
-import json
-from pathlib import Path
-
+from agent.swift_analisys_agent import SwiftAnalysisAgent
 from model.local_model import LocalModel
-from prompts.swift_analysis import build_swift_analysis_messages
-from model.analysis_schema import validate_analysis
 
 
 MODEL = "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit"
 
 
 def main():
-    source_code = Path("example.swift").read_text()
+    model = LocalModel(MODEL)
+    agent = SwiftAnalysisAgent(model)
 
-    llm = LocalModel(MODEL)
+    git_diff, diff_analysis = agent.analyze_git_diff()
 
-    messages = build_swift_analysis_messages(source_code)
+    print("\n--- DIFF SUMMARY ---")
+    print(diff_analysis.summary)
 
-    response = llm.generate(
-        messages=messages,
-        max_tokens=600,
-    )
+    test_plan = agent.create_test_plan(diff_analysis, git_diff)
 
-    clean_response = response.strip()
+    print("\n--- TEST PLAN ---")
 
-    if clean_response.startswith("```json"):
-        clean_response = clean_response.removeprefix("```json")
-
-    if clean_response.endswith("```"):
-        clean_response = clean_response.removesuffix("```")
-
-    clean_response = clean_response.strip()
-
-    try:
-        analysis = json.loads(clean_response)
-        if not validate_analysis(analysis):
-            print("\nERROR: JSON structure is invalid.")
-            return
-
-    except json.JSONDecodeError as error:
-        print("\nERROR: The model returned invalid JSON.")
-        print(error)
-        return
-
-    print("\n--- SUMMARY ---\n")
-    print(analysis["summary"])
-
-    print("\n--- EDGE CASES ---\n")
-    for edge_case in analysis["edge_cases"]:
-        print(f"- {edge_case}")
-
-    print("\n--- POTENTIAL ISSUES ---\n")
-    for issue in analysis["potential_issues"]:
-        print(
-            f"- {issue['description']} "
-            f"(confidence: {issue['confidence']})"
-        )
+    for scenario in test_plan.scenarios:
+        print(f"\nName: {scenario.name}")
+        print(f"Purpose: {scenario.purpose}")
+        print(f"Input: {scenario.input_description}")
+        print(f"Expected: {scenario.expected_behavior}")
+        print(f"Priority: {scenario.priority}")
 
 
 if __name__ == "__main__":

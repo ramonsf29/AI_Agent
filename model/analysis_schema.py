@@ -1,42 +1,33 @@
-VALID_CONFIDENCE_VALUES = {"low", "medium", "high"}
+from typing import Literal
+from pydantic import BaseModel
+
+class PotentialIssue(BaseModel):
+    description: str
+    confidence: Literal["low", "medium", "high"]
 
 
-def validate_analysis(data: dict) -> bool:
-    required_keys = {
-        "summary",
-        "edge_cases",
-        "potential_issues",
-    }
+class SwiftAnalysis(BaseModel):
+    summary: str
+    edge_cases: list[str]
+    potential_issues: list[PotentialIssue]
 
-    if not required_keys.issubset(data.keys()):
-        return False
+class RiskArea(BaseModel):
+    description: str
+    confidence: Literal["low", "medium", "high"]
 
-    if not isinstance(data["summary"], str):
-        return False
 
-    if not isinstance(data["edge_cases"], list):
-        return False
+class SwiftDiffAnalysis(BaseModel):
+    summary: str
+    behavior_changes: list[str]
+    risk_areas: list[RiskArea]
 
-    if not all(isinstance(item, str) for item in data["edge_cases"]):
-        return False
+class TestScenario(BaseModel):
+    name: str
+    purpose: str
+    input_description: str
+    expected_behavior: str
+    priority: Literal["low", "medium", "high"]
 
-    if not isinstance(data["potential_issues"], list):
-        return False
 
-    for issue in data["potential_issues"]:
-        if not isinstance(issue, dict):
-            return False
-
-        if "description" not in issue:
-            return False
-
-        if "confidence" not in issue:
-            return False
-
-        if not isinstance(issue["description"], str):
-            return False
-
-        if issue["confidence"] not in VALID_CONFIDENCE_VALUES:
-            return False
-
-    return True
+class SwiftTestPlan(BaseModel):
+    scenarios: list[TestScenario]
