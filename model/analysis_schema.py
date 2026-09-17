@@ -31,3 +31,13 @@ class TestScenario(BaseModel):
 
 class SwiftTestPlan(BaseModel):
     scenarios: list[TestScenario]
+
+
+class TestScenarioValidation(BaseModel):
+    scenario_name: str
+    status: Literal["valid", "invalid", "uncertain"]
+    reason: str
+
+
+class SwiftTestPlanValidation(BaseModel):
+    validations: list[TestScenarioValidation]

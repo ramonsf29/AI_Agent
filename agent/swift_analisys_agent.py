@@ -3,13 +3,14 @@ import json
 from pydantic import ValidationError
 from model.local_model import LocalModel
 from prompts.swift_analysis import build_swift_analysis_messages
+from prompts.swift_test_plan_validation import build_test_plan_validation_messages
 from tools.file_tools import read_text_file
 from prompts.swift_diff_analysis import build_swift_diff_analysis_messages
 from tools.git_tools import get_git_diff
 from model.analysis_schema import (
     SwiftAnalysis,
     SwiftDiffAnalysis,
-    SwiftTestPlan,
+    SwiftTestPlan, SwiftTestPlanValidation,
 )
 
 from prompts.swift_test_plan import build_swift_test_plan_messages
@@ -104,6 +105,40 @@ class SwiftAnalysisAgent:
         except ValidationError as error:
             raise ValueError(
                 "The model returned an invalid test plan structure."
+            ) from error
+
+    def verify_test_plan(
+            self,
+            git_diff: str,
+            test_plan: SwiftTestPlan,
+    ) -> SwiftTestPlanValidation:
+
+        messages = build_test_plan_validation_messages(
+            git_diff,
+            test_plan,
+        )
+
+        response = self.model.generate(
+            messages=messages,
+            max_tokens=1200,
+        )
+
+        clean_response = self._clean_response(response)
+
+        try:
+            data = json.loads(clean_response)
+
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                "The model returned invalid JSON while validating the test plan."
+            ) from error
+
+        try:
+            return SwiftTestPlanValidation.model_validate(data)
+
+        except ValidationError as error:
+            raise ValueError(
+                "The model returned an invalid test-plan validation structure."
             ) from error
 
     @staticmethod
