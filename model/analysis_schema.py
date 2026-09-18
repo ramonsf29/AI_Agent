@@ -21,12 +21,33 @@ class SwiftDiffAnalysis(BaseModel):
     behavior_changes: list[str]
     risk_areas: list[RiskArea]
 
+class TestInput(BaseModel):
+    name: str
+    value: int
+
+
 class TestScenario(BaseModel):
     name: str
     purpose: str
-    input_description: str
-    expected_behavior: str
+    inputs: list[TestInput]
+    expected_output: int
     priority: Literal["low", "medium", "high"]
+
+
+class SwiftTestPlan(BaseModel):
+    scenarios: list[TestScenario]
+
+class TestExecutionResult(BaseModel):
+    scenario_name: str
+    expected_output: int
+    actual_output: int
+    matches_expected: bool
+
+class BehaviorComparison(BaseModel):
+    scenario_name: str
+    old_output: int | None
+    new_output: int
+    behavior_changed: bool | None
 
 
 class SwiftTestPlan(BaseModel):

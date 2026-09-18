@@ -10,7 +10,13 @@ from tools.git_tools import get_git_diff
 from model.analysis_schema import (
     SwiftAnalysis,
     SwiftDiffAnalysis,
-    SwiftTestPlan, SwiftTestPlanValidation,
+    SwiftTestPlan,
+    SwiftTestPlanValidation,
+    TestExecutionResult,
+    TestScenario,
+)
+from prompts.swift_xctest_generation import (
+    build_xctest_generation_messages,
 )
 
 from prompts.swift_test_plan import build_swift_test_plan_messages
@@ -140,6 +146,40 @@ class SwiftAnalysisAgent:
             raise ValueError(
                 "The model returned an invalid test-plan validation structure."
             ) from error
+
+    def generate_xctest(
+            self,
+            source_code: str,
+            function_name: str,
+            scenarios: list[TestScenario],
+            execution_results: list[TestExecutionResult],
+    ) -> str:
+
+        messages = build_xctest_generation_messages(
+            source_code=source_code,
+            function_name=function_name,
+            scenarios=scenarios,
+            execution_results=execution_results,
+        )
+
+        response = self.model.generate(
+            messages=messages,
+            max_tokens=1800,
+        )
+
+        return self._clean_swift_response(response)
+
+    @staticmethod
+    def _clean_swift_response(response: str) -> str:
+        clean_response = response.strip()
+
+        if clean_response.startswith("```swift"):
+            clean_response = clean_response.removeprefix("```swift")
+
+        if clean_response.endswith("```"):
+            clean_response = clean_response.removesuffix("```")
+
+        return clean_response.strip()
 
     @staticmethod
     def _clean_response(response: str) -> str:
